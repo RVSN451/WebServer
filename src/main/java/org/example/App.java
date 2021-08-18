@@ -12,6 +12,5 @@ public class App {
 
         WebServer server = new WebServer(validPaths, PORT);
         server.serverOn();
-
     }
 }

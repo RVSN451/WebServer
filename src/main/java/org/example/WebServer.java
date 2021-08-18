@@ -29,13 +29,8 @@ public class WebServer {
     public void serverOn() {
         try (final var serverSocket = new ServerSocket(port)) {
             while (true) {
-
                 final var socket = serverSocket.accept();
-                final var in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-                final var out = new BufferedOutputStream(socket.getOutputStream());
-
-                threadPool.submit(new Client(socket, in, out));
-
+                threadPool.submit(new Client(socket));
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -48,10 +43,10 @@ public class WebServer {
         final BufferedReader in;
         final BufferedOutputStream out;
 
-        public Client(Socket clientSocket, BufferedReader in, BufferedOutputStream out) {
+        public Client(Socket clientSocket) throws IOException {
             this.clientSocket = clientSocket;
-            this.in = in;
-            this.out = out;
+            this.in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+            this.out = new BufferedOutputStream(clientSocket.getOutputStream());
         }
 
         public void notFound() throws IOException {
@@ -121,6 +116,8 @@ public class WebServer {
                         }
                     }
                 }
+                in.close();
+                out.close();
             } catch (IOException e) {
                 e.printStackTrace();
             }
