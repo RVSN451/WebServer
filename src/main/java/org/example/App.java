@@ -7,7 +7,6 @@ import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
-import java.util.concurrent.ConcurrentHashMap;
 
 public class App {
 
@@ -15,17 +14,18 @@ public class App {
     public static final String POST = "POST";
     public static final int PORT = 7777;
 
+    public static final List<String> validPaths = List.of("/index.html", "/spring.svg",
+            "/spring.png", "/resources.html", "/styles.css", "/app.js",
+            "/links.html", "/forms.html", "/classic.html", "/events.html", "/events.js");
+
+    public static final List<String> allowedMethods = List.of(GET, POST);
+
+    public static final HashMap<String, HashMap<String, Handler>> handlers = new HashMap<>();
+
 
     public static void main(String[] args) {
 
-        final var validPaths = List.of("/index.html", "/spring.svg",
-                "/spring.png", "/resources.html", "/styles.css", "/app.js",
-                "/links.html", "/forms.html", "/classic.html", "/events.html", "/events.js");
-        final var allowedMethods = List.of(GET, POST);
-
-        final ConcurrentHashMap<String, ConcurrentHashMap<String, Handler>> handlers = new ConcurrentHashMap<>();
-
-        WebServer server = new WebServer(validPaths, allowedMethods, handlers);
+        WebServer server = new WebServer(handlers);
 
         server.addHandler("GET", "/classic.html", new Handler() {
             @Override
@@ -46,6 +46,23 @@ public class App {
                                     "\r\n"
                     ).getBytes());
                     responseStream.write(content);
+                    responseStream.flush();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+
+        server.addHandler("POST", "/classic.html", new Handler() {
+            @Override
+            public void handle(Request request, BufferedOutputStream responseStream) {
+                try {
+                    responseStream.write((
+                            "HTTP/1.1 403 Forbidden\r\n" +
+                                    "Content-Length: 0\r\n" +
+                                    "Connection: close\r\n" +
+                                    "\r\n"
+                    ).getBytes());
                     responseStream.flush();
                 } catch (IOException e) {
                     e.printStackTrace();

@@ -6,23 +6,24 @@ import java.net.Socket;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 
 public class WebServer {
     // Список разрешённых путей
-    private final List<String> validPaths;
-    private final List<String> allowedMethods;
+    private static final List<String> validPaths = App.validPaths;
+    // Список разрешенных методов
+    private static final List<String> allowedMethods = App.allowedMethods;
+
+
+
     // Map обработчиков, включает key(метод):value(Map key(путь):value(обработчик))
-    private final ConcurrentHashMap<String, ConcurrentHashMap<String, Handler>> handlers;
+    private final HashMap<String, HashMap<String, Handler>> handlers;
     private final ExecutorService threadPool;
 
-    public WebServer(List<String> validPaths, List<String> allowedMethods,
-                     ConcurrentHashMap<String, ConcurrentHashMap<String, Handler>> handlers) {
-        this.validPaths = validPaths;
-        this.allowedMethods = allowedMethods;
+    public WebServer(HashMap<String, HashMap<String, Handler>> handlers) {
+
         threadPool = Executors.newFixedThreadPool(64);
         this.handlers = handlers;
 
@@ -30,7 +31,7 @@ public class WebServer {
 
     public void addHandler(String method, String path, Handler handler) {
         handlers
-                .computeIfAbsent(method, k -> new ConcurrentHashMap<String, Handler>())
+                .computeIfAbsent(method, k -> new HashMap<>())
                 .computeIfAbsent(path, k -> handler);
     }
 
@@ -40,14 +41,12 @@ public class WebServer {
             while (true) {
                 final var socket = serverSocket.accept();
                 threadPool.submit(new Client(socket));
-                socket.close();
+                //socket.close();
             }
         } catch (IOException e) {
             e.printStackTrace();
         }
-
     }
-
 
     private class Client extends Thread {
         final Socket clientSocket;
@@ -76,10 +75,6 @@ public class WebServer {
                             "\r\n"
             ).getBytes());
             out.flush();
-
-            clientSocket.close();
-            in.close();
-            out.close();
         }
 
         public void defaultCase(Path filePath, String mimeType) throws IOException {
@@ -141,7 +136,7 @@ public class WebServer {
                 System.out.println(method);
 
                 final var path = requestLine[1];
-                if (!path.startsWith("/")) {
+                if (!validPaths.contains(path)) {
                     badRequest(out);
                     Thread.currentThread().interrupt();
                 }
@@ -181,113 +176,29 @@ public class WebServer {
                     }
                 }
 
-
                 Request request = new Request(requestLine, headers, body);
 
-                /*ConcurrentMap handle = handlers.entrySet()
-                        .stream()
-                        .filter(k -> k.getKey() == request.getMethod())
-                        .collect(
-                                Collectors.toConcurrentMap(k -> k.getKey(),v -> v.getValue()));
-                handle.entrySet()
-                        .stream()
-                        .filter(k -> k.g)
 
-                */
+                if (handlers.getOrDefault(request.getMethod(), null)
+                        .getOrDefault(request.getPath(), null) != null) {
 
-
-
-
-
-                ConcurrentHashMap handle = handlers.getOrDefault(request.getMethod(), null);
-                if (handle != null) {
-                    if (handle.getOrDefault(request.getPath(), null) != null) {
-                        Set s = handle.entrySet()
-                                .stream()
-                                .filter(k -> k.getKey() == request.getPath()) // ПОЧЕМУ НЕ ФИЛЬТРУЕТ ПО КЛЮЧУ???
-                                .forEach(Handler::handle);
-                    }
+                    handlers.get(request.getMethod()).get(request.getPath())
+                            .handle(request, out);
                 } else {
 
                     final var filePath = Path.of(".", "public", request.getPath());
                     final var mimeType = Files.probeContentType(filePath);
+
                     defaultCase(filePath, mimeType);
                 }
-                //TODO как вбрать нужнй обработчик?
 
-
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-
-        }
-
-
-
-
-
-
-        /*public void notFound() throws IOException {
-            out.write((
-                    "HTTP/1.1 404 Not Found\r\n" +
-                            "Content-Length: 0\r\n" +
-                            "Connection: close\r\n" +
-                            "\r\n"
-            ).getBytes());
-            out.flush();
-        }
-
-        public void classicHtml(Path filePath, String mimeType) throws IOException {
-
-            final var template = Files.readString(filePath);
-            final var content = template.replace(
-                    "{time}",
-                    LocalDateTime.now().toString()
-            ).getBytes();
-            out.write((
-                    "HTTP/1.1 200 OK\r\n" +
-                            "Content-Type: " + mimeType + "\r\n" +
-                            "Content-Length: " + content.length + "\r\n" +
-                            "Connection: close\r\n" +
-                            "\r\n"
-            ).getBytes());
-            out.write(content);
-            out.flush();
-        }
-
-
-
-        @Override
-        public void run() {
-
-            try {
-                // read only request line for simplicity
-                // must be in form GET /path HTTP/1.1
-                final var requestLine = in.readLine();
-                final var parts = requestLine.split(" ");
-
-                if (parts.length == 3) {
-                    final var path = parts[1];
-
-                    if (!validPaths.contains(path)) {
-                        notFound();
-                    } else {
-                        final var filePath = Path.of(".", "public", path);
-                        final var mimeType = Files.probeContentType(filePath);
-
-                        // special case for classic
-                        if (path.equals("/classic.html")) {
-                            classicHtml(filePath, mimeType);
-                        } else {
-                            defaultCase(filePath, mimeType);
-                        }
-                    }
-                }
+                clientSocket.close();
                 in.close();
                 out.close();
+
             } catch (IOException e) {
                 e.printStackTrace();
             }
-        }*/
+        }
     }
 }

@@ -1,14 +1,15 @@
 package org.example;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
 public final class Request {
     private final String[] requestLine;
-    private final String method;
-    private final String path;
     private final List<String> headers;
     private final String body;
+    private final String method;
+    private final String path;
 
 
     Request(String[] requestLine, List<String> headers, String body) {
@@ -17,9 +18,8 @@ public final class Request {
         this.body = body;
         method = requestLine[0];
         path = requestLine[1];
+
     }
-
-
 
     public String[] getRequestLine() {
         return requestLine;
@@ -46,7 +46,7 @@ public final class Request {
         if (obj == this) return true;
         if (obj == null || obj.getClass() != this.getClass()) return false;
         var that = (Request) obj;
-        return Objects.equals(this.requestLine, that.requestLine) &&
+        return Arrays.equals(this.requestLine, that.requestLine) &&
                 Objects.equals(this.headers, that.headers) && Objects.equals(this.body, that.body);
     }
 
@@ -58,8 +58,9 @@ public final class Request {
     @Override
     public String toString() {
         return "Request[" +
-                "requestLine=" + requestLine + ", " +
-                "headers=" + headers + ']';
+                "method=" + method + ", " +
+                "path=" + path + ", " +
+                "headers=" + headers + "]";
     }
 
 }
