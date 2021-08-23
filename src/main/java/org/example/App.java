@@ -1,16 +1,58 @@
 package org.example;
 
+import java.io.BufferedOutputStream;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class App {
+
+    public static final String GET = "GET";
+    public static final String POST = "POST";
+    public static final int PORT = 7777;
+
+
     public static void main(String[] args) {
 
         final var validPaths = List.of("/index.html", "/spring.svg",
                 "/spring.png", "/resources.html", "/styles.css", "/app.js",
                 "/links.html", "/forms.html", "/classic.html", "/events.html", "/events.js");
-        final var PORT = 28964;
+        final var allowedMethods = List.of(GET, POST);
 
-        WebServer server = new WebServer(validPaths, PORT);
-        server.serverOn();
+        final ConcurrentHashMap<String, ConcurrentHashMap<String, Handler>> handlers = new ConcurrentHashMap<>();
+
+        WebServer server = new WebServer(validPaths, allowedMethods, handlers);
+
+        server.addHandler("GET", "/classic.html", new Handler() {
+            @Override
+            public void handle(Request request, BufferedOutputStream responseStream) {
+                try {
+                    final var filePath = Path.of(".", "public", request.getPath());
+                    final var mimeType = Files.probeContentType(filePath);
+
+                    final var content = request.getBody().replace(
+                            "{time}",
+                            LocalDateTime.now().toString()
+                    ).getBytes();
+                    responseStream.write((
+                            "HTTP/1.1 200 OK\r\n" +
+                                    "Content-Type: " + mimeType + "\r\n" +
+                                    "Content-Length: " + content.length + "\r\n" +
+                                    "Connection: close\r\n" +
+                                    "\r\n"
+                    ).getBytes());
+                    responseStream.write(content);
+                    responseStream.flush();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+
+        server.serverOn(PORT);
     }
 }
