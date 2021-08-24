@@ -15,7 +15,9 @@ public final class Request {
     Request(String[] requestLine, List<String> headers, String body) {
         this.requestLine = requestLine;
         this.headers = headers;
-        this.body = body;
+        if (body == "") {
+            this.body = null;
+        } else this.body = body;
         method = requestLine[0];
         path = requestLine[1];
 
@@ -41,6 +43,7 @@ public final class Request {
         return headers;
     }
 
+
     @Override
     public boolean equals(Object obj) {
         if (obj == this) return true;
@@ -62,5 +65,4 @@ public final class Request {
                 "path=" + path + ", " +
                 "headers=" + headers + "]";
     }
-
 }

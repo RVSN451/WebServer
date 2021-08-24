@@ -3,6 +3,7 @@ package org.example;
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
@@ -15,7 +16,6 @@ public class WebServer {
     private static final List<String> validPaths = App.validPaths;
     // Список разрешенных методов
     private static final List<String> allowedMethods = App.allowedMethods;
-
 
 
     // Map обработчиков, включает key(метод):value(Map key(путь):value(обработчик))
@@ -41,7 +41,6 @@ public class WebServer {
             while (true) {
                 final var socket = serverSocket.accept();
                 threadPool.submit(new Client(socket));
-                //socket.close();
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -130,17 +129,15 @@ public class WebServer {
 
                 final var method = requestLine[0];
                 if (!allowedMethods.contains(method)) {
-                    badRequest(out);
+                    badRequest(out); // На самом деле нужно выдавать 415 Method not support
                     Thread.currentThread().interrupt();
                 }
-                System.out.println(method);
 
                 final var path = requestLine[1];
-                if (!validPaths.contains(path)) {
+                if (!path.startsWith("/")) {
                     badRequest(out);
                     Thread.currentThread().interrupt();
                 }
-                System.out.println(path);
 
                 // ищем заголовки
                 final var headersDelimiter = new byte[]{'\r', '\n', '\r', '\n'};
@@ -158,7 +155,6 @@ public class WebServer {
 
                 final var headersBytes = in.readNBytes(headersEnd - headersStart);
                 final var headers = Arrays.asList(new String(headersBytes).split("\r\n"));
-                System.out.println(headers);
 
                 // для GET тела нет
                 String body = "";
@@ -170,9 +166,7 @@ public class WebServer {
                         final var length = Integer.parseInt(contentLength.get());
                         final var bodyBytes = in.readNBytes(length);
 
-                        final var bodyString = new String(bodyBytes);
-                        System.out.println(bodyString);
-                        body = bodyString;
+                        body = new String(bodyBytes, StandardCharsets.UTF_8);
                     }
                 }
 
@@ -184,13 +178,14 @@ public class WebServer {
 
                     handlers.get(request.getMethod()).get(request.getPath())
                             .handle(request, out);
-                } else {
+                } else if (validPaths.contains(request.getPath())){
 
                     final var filePath = Path.of(".", "public", request.getPath());
                     final var mimeType = Files.probeContentType(filePath);
-
                     defaultCase(filePath, mimeType);
-                }
+
+                } else badRequest(out);
+
 
                 clientSocket.close();
                 in.close();

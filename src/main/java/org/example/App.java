@@ -12,11 +12,11 @@ public class App {
 
     public static final String GET = "GET";
     public static final String POST = "POST";
-    public static final int PORT = 7777;
+    public static final int PORT = 9999;
 
     public static final List<String> validPaths = List.of("/index.html", "/spring.svg",
             "/spring.png", "/resources.html", "/styles.css", "/app.js",
-            "/links.html", "/forms.html", "/classic.html", "/events.html", "/events.js");
+            "/links.html", "/forms.html", "/classic.html", "/events.html", "/events.js", "/favicon.ico");
 
     public static final List<String> allowedMethods = List.of(GET, POST);
 
@@ -31,10 +31,12 @@ public class App {
             @Override
             public void handle(Request request, BufferedOutputStream responseStream) {
                 try {
+
                     final var filePath = Path.of(".", "public", request.getPath());
                     final var mimeType = Files.probeContentType(filePath);
 
-                    final var content = request.getBody().replace(
+                    final var template = Files.readString(filePath);
+                    final var content = template.replace(
                             "{time}",
                             LocalDateTime.now().toString()
                     ).getBytes();
@@ -47,29 +49,12 @@ public class App {
                     ).getBytes());
                     responseStream.write(content);
                     responseStream.flush();
+
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
             }
         });
-
-        server.addHandler("POST", "/classic.html", new Handler() {
-            @Override
-            public void handle(Request request, BufferedOutputStream responseStream) {
-                try {
-                    responseStream.write((
-                            "HTTP/1.1 403 Forbidden\r\n" +
-                                    "Content-Length: 0\r\n" +
-                                    "Connection: close\r\n" +
-                                    "\r\n"
-                    ).getBytes());
-                    responseStream.flush();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
-        });
-
         server.serverOn(PORT);
     }
 }
